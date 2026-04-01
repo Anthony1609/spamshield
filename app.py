@@ -18,13 +18,13 @@ stop_words = set(stopwords.words("english"))
 # ── Preprocessing (must match training) ─────────────────────
 def preprocess(text: str) -> str:
     text = text.lower()
-    text = re.sub(r"http\S+|www\S+", " ", text)
-    text = re.sub(r"\W", " ", text)
-    text = re.sub(r"\s+", " ", text).strip()
+    text = re.sub(r"http\S+|www\S+", " ", text)   # remove URLs
+    text = re.sub(r"\W", " ", text)                # remove special chars
+    text = re.sub(r"\s+", " ", text).strip()       # collapse whitespace
     words = [stemmer.stem(w) for w in text.split() if w not in stop_words]
     return " ".join(words)
 
-# ── Stats (hardcoded from training run) ─────────────────────
+# ── Stats (from training run) ────────────────────────────────
 STATS = {
     "total_emails"   : 5572,
     "ham_count"      : 4825,
@@ -56,15 +56,20 @@ def predict():
 
     cleaned  = preprocess(text)
     features = vectorizer.transform([cleaned]).toarray()
-    pred     = model.predict(features)[0]
-    proba    = model.predict_proba(features)[0]
-    confidence = round(float(proba[pred]) * 100, 2)
 
-    # Top spam keywords detected
+    # ── Spam probability with lowered threshold ──────────────
+    proba          = model.predict_proba(features)[0]
+    spam_prob      = proba[1]
+
+    # Flag as spam if >30% probability (catches long marketing emails)
+    pred           = 1 if spam_prob >= 0.30 else 0
+    confidence     = round(float(spam_prob if pred == 1 else proba[0]) * 100, 2)
+
+    # ── Top spam keywords detected ───────────────────────────
     feature_names = vectorizer.get_feature_names_out()
-    scores = features[0]
-    top_idx = scores.argsort()[::-1][:5]
-    keywords = [feature_names[i] for i in top_idx if scores[i] > 0]
+    scores        = features[0]
+    top_idx       = scores.argsort()[::-1][:5]
+    keywords      = [feature_names[i] for i in top_idx if scores[i] > 0]
 
     return jsonify({
         "label"     : "SPAM" if pred == 1 else "HAM",
