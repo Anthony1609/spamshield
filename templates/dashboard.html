@@ -1,0 +1,370 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>SpamShield — Dashboard</title>
+<link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Syne:wght@400;600;800&display=swap" rel="stylesheet"/>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
+<style>
+  :root {
+    --bg:      #0a0a0f;
+    --surface: #111118;
+    --border:  #1e1e2e;
+    --accent:  #00ff88;
+    --red:     #ff4560;
+    --blue:    #4c9fff;
+    --yellow:  #ffd166;
+    --text:    #e2e2f0;
+    --muted:   #555570;
+    --glow:    0 0 30px rgba(0,255,136,0.12);
+  }
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--bg); color: var(--text);
+    font-family: 'Syne', sans-serif; min-height: 100vh;
+  }
+  body::before {
+    content: '';
+    position: fixed; inset: 0;
+    background-image:
+      linear-gradient(rgba(0,255,136,0.025) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(0,255,136,0.025) 1px, transparent 1px);
+    background-size: 40px 40px;
+    pointer-events: none; z-index: 0;
+  }
+
+  nav {
+    position: relative; z-index: 10;
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 1.2rem 2.5rem;
+    border-bottom: 1px solid var(--border);
+  }
+  .logo { font-size: 1.3rem; font-weight: 800; color: var(--accent); }
+  .logo span { color: var(--text); }
+  nav a {
+    color: var(--muted); text-decoration: none;
+    font-family: 'Space Mono', monospace; font-size: 0.8rem;
+    padding: 0.4rem 1rem; border: 1px solid var(--border); border-radius: 4px;
+    transition: all 0.2s;
+  }
+  nav a:hover { color: var(--accent); border-color: var(--accent); }
+
+  /* PAGE */
+  .page {
+    position: relative; z-index: 1;
+    max-width: 1100px; margin: 0 auto; padding: 3rem 2rem;
+  }
+
+  .page-title {
+    font-size: 2.5rem; font-weight: 800; margin-bottom: 0.4rem;
+  }
+  .page-title em { color: var(--accent); font-style: normal; }
+  .page-sub {
+    font-family: 'Space Mono', monospace; font-size: 0.78rem;
+    color: var(--muted); margin-bottom: 3rem;
+  }
+
+  /* STAT CARDS */
+  .stats-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 1rem; margin-bottom: 2.5rem;
+  }
+  .stat-card {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 12px; padding: 1.5rem;
+    transition: border-color 0.2s;
+  }
+  .stat-card:hover { border-color: #2a2a3e; }
+  .stat-label {
+    font-family: 'Space Mono', monospace; font-size: 0.68rem;
+    text-transform: uppercase; letter-spacing: 1.5px; color: var(--muted);
+    margin-bottom: 0.6rem;
+  }
+  .stat-value {
+    font-size: 2.2rem; font-weight: 800; line-height: 1;
+  }
+  .stat-value.green { color: var(--accent); }
+  .stat-value.red   { color: var(--red);    }
+  .stat-value.blue  { color: var(--blue);   }
+  .stat-sub {
+    font-family: 'Space Mono', monospace; font-size: 0.7rem;
+    color: var(--muted); margin-top: 0.3rem;
+  }
+
+  /* CHART GRID */
+  .chart-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1.5rem; margin-bottom: 2.5rem;
+  }
+  @media (max-width: 700px) { .chart-grid { grid-template-columns: 1fr; } }
+
+  .chart-card {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 14px; padding: 1.5rem;
+  }
+  .chart-title {
+    font-size: 0.72rem; font-family: 'Space Mono', monospace;
+    text-transform: uppercase; letter-spacing: 1.5px; color: var(--muted);
+    margin-bottom: 1.25rem;
+  }
+  .chart-wrap { position: relative; height: 220px; }
+
+  /* MODEL TABLE */
+  .table-card {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 14px; padding: 1.5rem; margin-bottom: 2.5rem;
+  }
+  .table-title {
+    font-size: 0.72rem; font-family: 'Space Mono', monospace;
+    text-transform: uppercase; letter-spacing: 1.5px; color: var(--muted);
+    margin-bottom: 1.25rem;
+  }
+  table { width: 100%; border-collapse: collapse; }
+  thead tr { border-bottom: 1px solid var(--border); }
+  th {
+    font-family: 'Space Mono', monospace; font-size: 0.68rem;
+    text-transform: uppercase; letter-spacing: 1px;
+    color: var(--muted); padding: 0.5rem 1rem; text-align: left;
+  }
+  td {
+    padding: 0.9rem 1rem;
+    font-family: 'Space Mono', monospace; font-size: 0.82rem;
+    border-bottom: 1px solid var(--border);
+  }
+  tr:last-child td { border-bottom: none; }
+  .badge-best {
+    background: rgba(0,255,136,0.1); color: var(--accent);
+    border: 1px solid rgba(0,255,136,0.3);
+    font-size: 0.65rem; padding: 0.15rem 0.5rem; border-radius: 4px;
+    margin-left: 0.5rem; vertical-align: middle;
+  }
+  .acc-bar { display: flex; align-items: center; gap: 0.75rem; }
+  .mini-bar {
+    flex: 1; height: 5px; background: var(--border);
+    border-radius: 99px; overflow: hidden;
+  }
+  .mini-fill { height: 100%; border-radius: 99px; background: var(--accent); }
+
+  /* TECH STACK */
+  .tech-grid {
+    display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: 0.75rem;
+  }
+  .tech-chip {
+    background: var(--bg); border: 1px solid var(--border);
+    border-radius: 8px; padding: 0.75rem 1rem;
+    font-family: 'Space Mono', monospace; font-size: 0.78rem;
+    color: var(--text);
+    display: flex; align-items: center; gap: 0.5rem;
+  }
+
+  footer {
+    position: relative; z-index: 1;
+    border-top: 1px solid var(--border);
+    padding: 1.5rem 2.5rem;
+    display: flex; justify-content: space-between; align-items: center;
+    flex-wrap: wrap; gap: 0.5rem;
+    font-family: 'Space Mono', monospace; font-size: 0.72rem; color: var(--muted);
+  }
+</style>
+</head>
+<body>
+
+<nav>
+  <div class="logo">Spam<span>Shield</span></div>
+  <a href="/">⬅ Detector</a>
+</nav>
+
+<div class="page">
+  <h1 class="page-title">Model <em>Dashboard</em></h1>
+  <p class="page-sub">// Training results · Dataset statistics · Performance metrics</p>
+
+  <!-- STAT CARDS -->
+  <div class="stats-grid">
+    <div class="stat-card">
+      <div class="stat-label">Total Emails</div>
+      <div class="stat-value blue">{{ stats.total_emails }}</div>
+      <div class="stat-sub">in training dataset</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">Legitimate (Ham)</div>
+      <div class="stat-value green">{{ stats.ham_count }}</div>
+      <div class="stat-sub">{{ "%.1f"|format(stats.ham_count / stats.total_emails * 100) }}% of dataset</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">Spam Emails</div>
+      <div class="stat-value red">{{ stats.spam_count }}</div>
+      <div class="stat-sub">{{ "%.1f"|format(stats.spam_count / stats.total_emails * 100) }}% of dataset</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">Best Accuracy</div>
+      <div class="stat-value green">{{ stats.nb_accuracy }}%</div>
+      <div class="stat-sub">{{ stats.best_model }}</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">Spam Precision</div>
+      <div class="stat-value green">{{ stats.nb_precision }}%</div>
+      <div class="stat-sub">Zero false positives</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">Features Used</div>
+      <div class="stat-value blue">3,000</div>
+      <div class="stat-sub">TF-IDF n-grams (1–2)</div>
+    </div>
+  </div>
+
+  <!-- CHARTS -->
+  <div class="chart-grid">
+    <div class="chart-card">
+      <div class="chart-title">// Dataset Distribution</div>
+      <div class="chart-wrap"><canvas id="pieChart"></canvas></div>
+    </div>
+    <div class="chart-card">
+      <div class="chart-title">// Model Accuracy Comparison</div>
+      <div class="chart-wrap"><canvas id="barChart"></canvas></div>
+    </div>
+  </div>
+
+  <!-- MODEL TABLE -->
+  <div class="table-card">
+    <div class="table-title">// Model Performance Summary</div>
+    <table>
+      <thead>
+        <tr>
+          <th>Algorithm</th>
+          <th>Test Accuracy</th>
+          <th>CV Accuracy (5-fold)</th>
+          <th>Spam Precision</th>
+          <th>Spam Recall</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>
+            Naive Bayes
+            <span class="badge-best">★ BEST</span>
+          </td>
+          <td>
+            <div class="acc-bar">
+              <span>{{ stats.nb_accuracy }}%</span>
+              <div class="mini-bar"><div class="mini-fill" style="width:{{ stats.nb_accuracy }}%"></div></div>
+            </div>
+          </td>
+          <td>{{ stats.nb_cv }}%</td>
+          <td style="color:var(--accent)">100%</td>
+          <td>83%</td>
+        </tr>
+        <tr>
+          <td>Logistic Regression</td>
+          <td>
+            <div class="acc-bar">
+              <span>{{ stats.lr_accuracy }}%</span>
+              <div class="mini-bar"><div class="mini-fill" style="width:{{ stats.lr_accuracy }}%;background:var(--blue)"></div></div>
+            </div>
+          </td>
+          <td>{{ stats.lr_cv }}%</td>
+          <td style="color:var(--accent)">100%</td>
+          <td>80%</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- TECH STACK -->
+  <div class="table-card">
+    <div class="table-title">// Technology Stack</div>
+    <div class="tech-grid">
+      <div class="tech-chip">🐍 Python 3.12</div>
+      <div class="tech-chip">🤖 Scikit-learn</div>
+      <div class="tech-chip">📝 NLTK</div>
+      <div class="tech-chip">🔢 TF-IDF Vectors</div>
+      <div class="tech-chip">🌐 Flask API</div>
+      <div class="tech-chip">📊 5,572 Samples</div>
+    </div>
+  </div>
+</div>
+
+<footer>
+  <span>SpamShield · CSC 309 Mini Project #3</span>
+  <span>Supervised Learning · Text Classification</span>
+</footer>
+
+<script>
+const accent = '#00ff88', red = '#ff4560', blue = '#4c9fff';
+const gridColor = 'rgba(255,255,255,0.04)';
+const labelColor = '#555570';
+
+Chart.defaults.color = labelColor;
+Chart.defaults.borderColor = gridColor;
+Chart.defaults.font.family = "'Space Mono', monospace";
+Chart.defaults.font.size = 11;
+
+// Pie chart
+new Chart(document.getElementById('pieChart'), {
+  type: 'doughnut',
+  data: {
+    labels: ['Ham (Legitimate)', 'Spam'],
+    datasets: [{
+      data: [{{ stats.ham_count }}, {{ stats.spam_count }}],
+      backgroundColor: [accent + '33', red + '33'],
+      borderColor: [accent, red],
+      borderWidth: 2,
+      hoverOffset: 8,
+    }]
+  },
+  options: {
+    responsive: true, maintainAspectRatio: false,
+    cutout: '65%',
+    plugins: {
+      legend: { position: 'bottom', labels: { padding: 20, usePointStyle: true } }
+    }
+  }
+});
+
+// Bar chart
+new Chart(document.getElementById('barChart'), {
+  type: 'bar',
+  data: {
+    labels: ['Naive Bayes', 'Logistic Regression'],
+    datasets: [
+      {
+        label: 'Test Accuracy',
+        data: [{{ stats.nb_accuracy }}, {{ stats.lr_accuracy }}],
+        backgroundColor: [accent + '44', blue + '44'],
+        borderColor: [accent, blue],
+        borderWidth: 2, borderRadius: 6,
+      },
+      {
+        label: 'CV Accuracy (5-fold)',
+        data: [{{ stats.nb_cv }}, {{ stats.lr_cv }}],
+        backgroundColor: [accent + '22', blue + '22'],
+        borderColor: [accent + '88', blue + '88'],
+        borderWidth: 1, borderRadius: 6,
+        borderDash: [4,4],
+      },
+    ]
+  },
+  options: {
+    responsive: true, maintainAspectRatio: false,
+    scales: {
+      y: {
+        min: 95, max: 100,
+        grid: { color: gridColor },
+        ticks: { callback: v => v + '%' }
+      },
+      x: { grid: { display: false } }
+    },
+    plugins: {
+      legend: { position: 'bottom', labels: { padding: 15, usePointStyle: true } },
+      tooltip: { callbacks: { label: c => ` ${c.dataset.label}: ${c.raw}%` } }
+    }
+  }
+});
+</script>
+</body>
+</html>
